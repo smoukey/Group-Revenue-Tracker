@@ -1,8 +1,8 @@
 ---
 
-# Roblox Group Revenue Tracker
+# Roblox Group Sale Notifier
 
-This script monitors the pending Robux revenue of a specified Roblox group and sends updates to a Discord webhook whenever there is a change. It runs at a regular interval and checks the group's revenue details.
+This script monitors the sales of a specified Roblox group and sends updates to a Discord webhook. It runs at a regular interval and checks the group's sales and revenue details.
 
 
 ## Obtaining the Roblox Token
@@ -23,13 +23,6 @@ If you're running the script on a **VPS or a panel** where you cannot directly l
 
 ### Note: Using a VPN is optional, and only necessary if you face issues accessing Roblox while running the script on a VPS or panel.
 
-## Troubleshooting
-
-- If the script is not working as expected, double-check your session token (`ROBLOX_TOKEN`), group ID (`GROUP_ID`), and Discord webhook URL (`WEBHOOK_URL`).
-- Ensure the `ROBLOX_TOKEN` is valid and that you are logged into the correct Roblox account.
-- If you face issues obtaining the session token, ensure that your VPN is connected to the correct country and that your browser's developer tools are correctly configured to access cookies.
-- Make sure the account has the permissions needed to view pending robux.
-
 ---
 
 # Donations
@@ -48,7 +41,7 @@ If you appreciate this project and would like to support it, you can make a dona
 
 </details>
 
-Feel free to reach out for any questions or feedback on my [Telegram](https://t.me/meowtermelon).
+## Feel free to reach out for any questions or feedback on my [Telegram](https://t.me/meowtermelon).
 
-My roblox group: https://www.roblox.com/communities/10872002/WEARABLE#!/
+## My roblox group: https://www.roblox.com/communities/10872002/WEARABLE#!/
 ---
