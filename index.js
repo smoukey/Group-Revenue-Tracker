@@ -1,69 +1,98 @@
-const axios = require("axios");
-const config = require("./config.json");
+const axios = require('axios');
+const fs = require('fs');
 
-const CHECK_INTERVAL = 30000;
+
+const config = JSON.parse(fs.readFileSync('config.json'));
+const cookie = config.ROBLOX_TOKEN;
+const webhookUrl = config.WEBHOOK_URL;
+const groupId = config.GROUP_ID;
+const checkInterval = config.CHECK_INTERVAL * 1000; 
+
+const headers = { Cookie: `.ROBLOSECURITY=${cookie}` };
 let lastPendingRobux = null;
+let prevData = null;
 
-async function getRobuxData() {
-    try {
-        const response = await axios.get(
-            `https://economy.roblox.com/v1/groups/${config.GROUP_ID}/revenue/summary/day`,
-            {
-                headers: {
-                    Cookie: `.ROBLOSECURITY=${config.ROBLOX_TOKEN};`,
-                },
-            }
-        );
-        console.log("Group Data:", response.data); // Print all the group data
-        return {
-            pendingRobux: response.data.pendingRobux || 0,
-        };
-    } catch (error) {
-        console.error("❌ | Error fetching Robux data:", error.response?.data || error.message);
-        return null;
-    }
-}
+const getPendingRobux = async () => {
+  try {
+    const url = `https://economy.roblox.com/v1/groups/${groupId}/revenue/summary/day`;
+    const response = await axios.get(url, { headers });
+    return response.data.pendingRobux || 0;
+  } catch (error) {
+    console.error(`Error fetching pending Robux: ${error.message}`);
+    return null;
+  }
+};
 
-async function sendRobuxToDiscord(pendingRobux) {
-    const embed = {
-        title: "Robux Update",
-        description: `The group has **${pendingRobux} Robux** pending.`,
+const getData = async () => {
+  try {
+    const url = `https://economy.roblox.com/v2/groups/${groupId}/transactions?limit=100&sortOrder=Asc&transactionType=Sale`;
+    const response = await axios.get(url, { headers });
+    return response.data.data?.[0] || null;
+  } catch (error) {
+    console.error(`Error fetching group transactions: ${error.message}`);
+    return null;
+  }
+};
+
+const sendWebhook = async (data, pendingRobux) => {
+  const { id: userId, name: username } = data.agent;
+  const { name: productName } = data.details;
+  const productPrice = data.currency.amount;
+
+  const description = `\n\n\`\`\`fix\nUsername: ${username}\nProduct Name: ${productName}\nProduct Price: ${productPrice} Robux\`\`\``;
+
+  const message = {
+    content: '🎉',
+    embeds: [
+      {
+        title: 'Item Sold',
+        description,
         color: 16776960,
-        footer: {
-            text: "Group Revenue Tracker",
+        thumbnail: {
+          url: `https://www.roblox.com/headshot-thumbnail/image?userId=${userId}&width=420&height=420&format=png`,
         },
-    };
+        footer: {
+          text: `Pending Robux: ${pendingRobux}`,
+        },
+      },
+    ],
+  };
 
+  try {
+    await axios.post(webhookUrl, message);
+    console.log('Webhook sent successfully!');
+  } catch (error) {
+    console.error(`Error sending webhook: ${error.message}`);
+  }
+};
+
+const start = async () => {
+  console.log('Starting bot...');
+  setInterval(async () => {
     try {
-        await axios.post(config.WEBHOOK_URL, {
-            embeds: [embed],
-        });
-        console.log(`✅ | Sent Robux update: Pending - ${pendingRobux}`);
+      const currentData = await getData();
+      const pendingRobux = await getPendingRobux();
+
+      if (pendingRobux === null) {
+        console.error('Error fetching pending Robux. Skipping this iteration.');
+        return;
+      }
+
+      if (currentData && JSON.stringify(currentData) !== JSON.stringify(prevData)) {
+        await sendWebhook(currentData, pendingRobux);
+        prevData = currentData;
+      }
+
+      if (lastPendingRobux === null || pendingRobux !== lastPendingRobux) {
+        console.log(`Pending Robux updated: ${pendingRobux}`);
+        lastPendingRobux = pendingRobux;
+      } else {
+        console.log('No changes in pending Robux.');
+      }
     } catch (error) {
-        console.error("❌ | Error sending to Discord:", error.response?.data || error.message);
+      console.error(`An error occurred: ${error.message}`);
     }
-}
+  }, checkInterval);
+};
 
-async function pollRobuxData() {
-    while (true) {
-        console.log("🔍 | Checking Robux data...");
-
-        const robuxData = await getRobuxData();
-        if (robuxData === null) {
-            console.log("⚠️ | Skipping this check due to an error.");
-        } else {
-            const { pendingRobux } = robuxData;
-
-            if (lastPendingRobux === null || pendingRobux !== lastPendingRobux) {
-                await sendRobuxToDiscord(pendingRobux);
-                lastPendingRobux = pendingRobux;
-            } else {
-                console.log("ℹ️ | Robux data hasn't changed.");
-            }
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, CHECK_INTERVAL));
-    }
-}
-
-pollRobuxData().catch((error) => console.error("❌ | Fatal error:", error));
+start();
